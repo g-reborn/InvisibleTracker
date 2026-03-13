@@ -1,7 +1,7 @@
 import definePlugin from "@utils/types";
 import { Devs } from "@utils/constants";
 
-const TRACKER_URL = "https://raw.githubusercontent.com/g-reborn/invtrack/refs/heads/main/userscript.js";
+const TRACKER_URL = "https://raw.githubusercontent.com/g-reborn/InvisibleTracker/refs/heads/main/userscript.js";
 
 async function loadTracker() {
     try {
