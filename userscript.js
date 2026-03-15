@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Discord Invisible Tracker
-// @version      15.0
+// @version      15.1
 // @description  Advanced presence monitoring tool that detects users hiding in "Invisible" mode.
 // @author       Mr G & Gemini
 // @match        https://discord.com/*
@@ -76,16 +76,11 @@
         list.innerHTML = '<div class="no-results">Fetching invisible users...</div>';
         const token = getDiscordToken();
         const ws = new WebSocket("wss://gateway.discord.gg/?v=9&encoding=json");
-
         ws.onopen = () => ws.send(JSON.stringify({ op: 2, d: { token, intents: 513, properties: { $os: "pc", $browser: "chrome" } } }));
-
         ws.onmessage = async (msg) => {
             const p = JSON.parse(msg.data);
             if (p.t === 'READY') {
-                const targets = (p.d.presences || []).filter(u => 
-                    (u.status === 'offline' || !u.status) && !excludedIds.includes(u.user.id)
-                );
-                
+                const targets = (p.d.presences || []).filter(u => (u.status === 'offline' || !u.status) && !excludedIds.includes(u.user.id));
                 list.innerHTML = "";
                 if (targets.length === 0) {
                     list.innerHTML = '<div class="no-results">No invisible users detected.</div>';
@@ -123,26 +118,29 @@
     };
 
     const injectTracker = () => {
-        // Sadece ana sayfa (DM/Friends) üzerindeyken çalıştır
-        if (!window.location.pathname.startsWith('/channels/@me')) {
+        // SADECE Ana Sayfa ve Arkadaşlar sekmesinde çalışması için katı kontrol
+        const isMainFriendsPage = window.location.pathname === '/channels/@me';
+        const container = document.querySelector('section[class^="container__"]'); // Ana içerik alanı
+        const tabBar = container?.querySelector('[class*="tabBar"]');
+
+        if (!isMainFriendsPage || !tabBar) {
             const existingTab = document.getElementById('inv-tracker-tab');
-            if (existingTab) existingTab.remove(); // Başka bir sayfaya geçilirse butonu sil
+            if (existingTab) existingTab.remove();
             return;
         }
 
-        const tabBar = document.querySelector('[class*="tabBar"]');
-        if (tabBar && !document.getElementById('inv-tracker-tab')) {
+        // Ek kontrol: tabBar'ın bir profil içerisinde olup olmadığını kontrol et (Profildeki tabBar'lar genelde farklı bir yapıdadır)
+        if (tabBar.closest('[class*="userProfile"]')) return;
+
+        if (!document.getElementById('inv-tracker-tab')) {
             const invTab = document.createElement('div');
             invTab.id = 'inv-tracker-tab';
             invTab.innerText = 'Invisible';
-            invTab.onclick = () => toggleUI();
+            invTab.onclick = (e) => { e.stopPropagation(); toggleUI(); };
 
             const separator = tabBar.querySelector('[class*="separator"]');
-            if (separator) {
-                separator.before(invTab);
-            } else {
-                tabBar.appendChild(invTab);
-            }
+            if (separator) separator.before(invTab);
+            else tabBar.appendChild(invTab);
         }
     };
 
