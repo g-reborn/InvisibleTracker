@@ -5,6 +5,8 @@
 // @author       Mr G & Gemini
 // @match        https://discord.com/*
 // @grant        none
+// @updateURL    https://raw.githubusercontent.com/g-reborn/InvisibleTracker/main/InvisibleTracker.user.js
+// @downloadURL  https://raw.githubusercontent.com/g-reborn/InvisibleTracker/main/InvisibleTracker.user.js
 // ==/UserScript==
 
 (function() {
