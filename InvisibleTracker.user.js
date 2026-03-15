@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         Discord Invisible Tracker
 // @version      4.27
-// @description  Advanced presence monitoring tool that detects users hiding in "Invisible" mode. This script adds a new "Invisible" tab directly into your Discord navigation bar, right next to the "All", "Online", and "Add Friend" menus. Note: Detection is only possible for users who are in your Friends List or share a Mutual Server with you, as it relies on real-time gateway status updates to identify users who are actually active but appearing offline.
+// @description  Advanced presence monitoring tool that detects friends hiding in "Invisible" mode using real-time gateway status updates.
 // @author       Mr G
 // @icon         https://cdn3.emoji.gg/emojis/6849-invisible.png
 // @match        https://discord.com/*
 // @grant        none
+// @downloadURL  https://raw.githubusercontent.com/g-reborn/InvisibleTracker/main/InvisibleTracker.user.js
+// @updateURL    https://raw.githubusercontent.com/g-reborn/InvisibleTracker/main/InvisibleTracker.user.js
 // ==/UserScript==
 
 (function() {
