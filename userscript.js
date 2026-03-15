@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discord Invisible Tracker
-// @version      4.41
-// @description  Automated DM Channel Reset for consistent status bypass.
+// @version      4.43
+// @description  Deep Scan without deleting DM channels.
 // @author       Mr G
 // @icon         https://cdn3.emoji.gg/emojis/6849-invisible.png
 // @match        https://discord.com/*
@@ -100,16 +100,6 @@
             container.style.display = 'block';
             slot.innerHTML = '<div class="no-results">Searching...</div>';
 
-            // 1. ADIM: Mevcut DM kanalını bul ve kapat (Tetikleme için sıfırlama)
-            try {
-                const channels = await (await fetch(`https://discord.com/api/v9/users/@me/channels`, { headers: { "Authorization": token } })).json();
-                const existingChan = channels.find(c => c.recipients && c.recipients.length === 1 && c.recipients[0].id === id);
-                if (existingChan) {
-                    await fetch(`https://discord.com/api/v9/channels/${existingChan.id}`, { method: "DELETE", headers: { "Authorization": token } });
-                }
-            } catch(e) {}
-
-            // 2. ADIM: Taze WebSocket aç
             const ws = new WebSocket("wss://gateway.discord.gg/?v=9&encoding=json");
             let found = false;
 
@@ -118,7 +108,7 @@
                     slot.innerHTML = '<div class="no-results">This user is truly offline</div>';
                     ws.close();
                 }
-            }, 10000);
+            }, 10000); 
 
             ws.onopen = () => {
                 ws.send(JSON.stringify({
@@ -131,21 +121,20 @@
                     }
                 }));
             };
-
+            
             ws.onmessage = async (msg) => {
                 const p = JSON.parse(msg.data);
-
+                
                 if (p.t === 'READY') {
-                    // 3. ADIM: DM kanalını YENİDEN OLUŞTUR (Bu asıl tetikleyicidir)
+                    // Sadece DM kanalını açma/tetikleme (Kapatma/Silme kaldırıldı)
                     fetch(`https://discord.com/api/v9/users/@me/channels`, {
                         method: "POST",
                         headers: { "Authorization": token, "Content-Type": "application/json" },
                         body: JSON.stringify({ recipients: [id] })
                     }).then(res => res.json()).then(chan => {
                         if(chan.id) ws.send(JSON.stringify({ op: 13, d: { channel_id: chan.id } }));
-                    });
+                    }).catch(() => {});
 
-                    // Sunucu taraması
                     for (const g of p.d.guilds) {
                         ws.send(JSON.stringify({ op: 8, d: { guild_id: g.id, user_ids: [id], presences: true } }));
                     }
@@ -157,9 +146,10 @@
                 if (target) {
                     found = true;
                     clearTimeout(timeout);
-
+                    
                     let statusLabel = target.status;
                     if (target.activities && target.activities.some(a => a.type === 1)) statusLabel = "STREAMING";
+                    
                     if (statusLabel === "offline" || !statusLabel) statusLabel = "INVISIBLE";
                     else statusLabel = statusLabel.toUpperCase();
 
