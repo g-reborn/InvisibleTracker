@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Discord Invisible Tracker
-// @version      14.9
-// @description  Advanced presence monitoring tool that detects users hiding in "Invisible" mode. Adds a new tab to your Friends menu.
-// @author       Mr G
+// @version      15.0
+// @description  Advanced presence monitoring tool that detects users hiding in "Invisible" mode.
+// @author       Mr G & Gemini
 // @match        https://discord.com/*
 // @grant        none
 // ==/UserScript==
@@ -43,7 +43,6 @@
             color: var(--interactive-hover);
             opacity: 0.8;
         }
-
         .tracker-header { padding: 16px; background: #2b2d31; display: flex; justify-content: space-between; align-items: center; color: #f2f3f5; font-weight: 600; }
         .section-header { color: #b5bac1; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; padding: 16px 16px 8px; }
         .tracker-list { flex: 1; overflow-y: auto; padding: 0 16px 16px; }
@@ -83,10 +82,10 @@
         ws.onmessage = async (msg) => {
             const p = JSON.parse(msg.data);
             if (p.t === 'READY') {
-                const targets = (p.d.presences || []).filter(u =>
+                const targets = (p.d.presences || []).filter(u => 
                     (u.status === 'offline' || !u.status) && !excludedIds.includes(u.user.id)
                 );
-
+                
                 list.innerHTML = "";
                 if (targets.length === 0) {
                     list.innerHTML = '<div class="no-results">No invisible users detected.</div>';
@@ -113,7 +112,7 @@
                         <div style="color:#f2f3f5; font-weight:600">Invisible Tracker</div>
                         <div style="cursor:pointer; color:#b5bac1; font-size:24px" id="tracker-close-x">×</div>
                     </div>
-                    <div class="section-header">RESULT</div>
+                    <div class="section-header">DETECTION RESULT</div>
                     <div id="tracker-results" class="tracker-list"></div>
                 </div>`;
             document.body.appendChild(wrapper);
@@ -124,6 +123,13 @@
     };
 
     const injectTracker = () => {
+        // Sadece ana sayfa (DM/Friends) üzerindeyken çalıştır
+        if (!window.location.pathname.startsWith('/channels/@me')) {
+            const existingTab = document.getElementById('inv-tracker-tab');
+            if (existingTab) existingTab.remove(); // Başka bir sayfaya geçilirse butonu sil
+            return;
+        }
+
         const tabBar = document.querySelector('[class*="tabBar"]');
         if (tabBar && !document.getElementById('inv-tracker-tab')) {
             const invTab = document.createElement('div');
