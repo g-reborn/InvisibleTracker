@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discord Invisible Tracker
-// @version      4.39
-// @description  Full Aggressive Deep Scan with Clean UI.
+// @version      4.40
+// @description  Stabilized Deep Scan with Rate-Limit Bypass.
 // @author       Mr G
 // @icon         https://cdn3.emoji.gg/emojis/6849-invisible.png
 // @match        https://discord.com/*
@@ -100,6 +100,7 @@
             container.style.display = 'block';
             slot.innerHTML = '<div class="no-results">Searching...</div>';
 
+            // Her aramada taze bağlantı
             const ws = new WebSocket("wss://gateway.discord.gg/?v=9&encoding=json");
             let found = false;
 
@@ -108,7 +109,7 @@
                     slot.innerHTML = '<div class="no-results">This user is truly offline</div>';
                     ws.close();
                 }
-            }, 9000); // Biraz daha süre tanıyalım derin tarama için
+            }, 10000); 
 
             ws.onopen = () => {
                 ws.send(JSON.stringify({
@@ -121,20 +122,18 @@
                     }
                 }));
             };
-
+            
             ws.onmessage = async (msg) => {
                 const p = JSON.parse(msg.data);
-
+                
                 if (p.t === 'READY') {
-                    // DERIN TARAMA PROTOKOLÜ (AGRESIF)
-                    p.d.guilds.forEach(g => {
-                        ws.send(JSON.stringify({
-                            op: 8,
-                            d: { guild_id: g.id, user_ids: [id], presences: true }
-                        }));
-                    });
+                    // Sunuculara istek atarken araya 50ms gecikme koyarak "Rate Limit" bypass deniyoruz
+                    for (const g of p.d.guilds) {
+                        await new Promise(r => setTimeout(r, 50)); 
+                        ws.send(JSON.stringify({ op: 8, d: { guild_id: g.id, user_ids: [id], presences: true } }));
+                    }
 
-                    // DM kanalı üzerinden gateway tetikleme
+                    // Kanal tetikleyici
                     fetch(`https://discord.com/api/v9/users/@me/channels`, {
                         method: "POST",
                         headers: { "Authorization": token, "Content-Type": "application/json" },
@@ -144,18 +143,16 @@
                     }).catch(() => {});
                 }
 
-                // Hem doğrudan presence update hem de guild chunk içindeki veriyi dinle
                 const presences = (p.d?.presences) || (p.t === 'PRESENCE_UPDATE' ? [p.d] : []) || (p.t === 'GUILD_MEMBERS_CHUNK' ? p.d.presences : []);
                 const target = presences.find(u => (u.user?.id === id || u.user_id === id));
 
                 if (target) {
                     found = true;
                     clearTimeout(timeout);
-
+                    
                     let statusLabel = target.status;
                     if (target.activities && target.activities.some(a => a.type === 1)) statusLabel = "STREAMING";
-
-                    // Görünmez yakalama kontrolü
+                    
                     if (statusLabel === "offline" || !statusLabel) {
                         statusLabel = "INVISIBLE";
                     } else {
