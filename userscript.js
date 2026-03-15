@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Discord Invisible Radar (Filtered)
-// @version      14.2
-// @description  Detects invisible friends except specified user IDs.
+// @name         Discord Invisible Radar
+// @version      14.4
+// @description  This script allows you to detect friends who are browsing Discord in Invisible mode. Even if they appear "offline," this tool identifies their active session signals and reveals them to you.
 // @author       Mr G & Gemini
 // @match        https://discord.com/*
 // @grant        none
@@ -40,13 +40,11 @@
             justify-content: center;
             color: #b5bac1;
             transition: 0.2s;
-            width: 32px;
-            height: 32px;
-            border-radius: 4px;
-            margin-right: 8px; /* Butonu sola çekmek için boşluk eklendi */
+            width: 24px;
+            height: 24px;
+            margin: 0 8px;
         }
         .inv-scan-btn:hover {
-            background-color: rgba(78, 80, 88, 0.3);
             color: #dbdee1;
         }
     `;
@@ -122,11 +120,11 @@
     };
 
     const injectButton = () => {
-        const targetContainer = document.querySelector('.trailing_c38106');
+        const targetContainer = document.querySelector('.inviteToolbar__133bf');
         if (targetContainer && !document.getElementById('inv-scan-trigger')) {
             const btn = document.createElement('div');
             btn.id = 'inv-scan-trigger';
-            btn.className = 'inv-scan-btn clickable__81391';
+            btn.className = 'inv-scan-btn clickable__9293f iconWrapper__9293f';
             btn.title = 'Scan Invisible Friends';
             btn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
             btn.onclick = (e) => { e.stopPropagation(); toggleUI(); };
