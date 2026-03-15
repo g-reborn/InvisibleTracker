@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discord Invisible Tracker
-// @version      4.27
-// @description  Advanced presence monitoring tool that detects users hiding in "Invisible" mode. This script adds a new "Invisible" tab directly into your Discord navigation bar, right next to the "All", "Online", and "Add Friend" menus. Note: Detection is only possible for users who are in your Friends List or share a Mutual Server with you, as it relies on real-time gateway status updates to identify users who are actually active but appearing offline.
+// @version      4.29
+// @description  Advanced presence monitoring with timeout for offline users.
 // @author       Mr G
 // @icon         https://cdn3.emoji.gg/emojis/6849-invisible.png
 // @match        https://discord.com/*
@@ -40,19 +40,12 @@
         #search-result-container { display: none; }
 
         .section-header {
-            color: #b5bac1;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.02em;
-            margin-bottom: 4px;
-            font-family: sans-serif;
+            color: #b5bac1; font-size: 11px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.02em;
+            margin-bottom: 4px; font-family: sans-serif;
         }
 
-        .section-header::before {
-            content: attr(data-text);
-        }
-
+        .section-header::before { content: attr(data-text); }
         .tracker-list { flex: 1; overflow-y: auto; padding: 0 16px 16px; }
         .user-card { background: #2b2d31; padding: 10px; margin-top: 8px; border-radius: 4px; display: flex; align-items: center; gap: 12px; border: none; }
         .user-avatar { width: 32px; height: 32px; border-radius: 50%; }
@@ -61,59 +54,6 @@
     `;
     document.head.appendChild(style);
 
-    const closeTracker = () => { document.getElementById('tracker-wrapper').style.display = 'none'; };
-
-    const createOverlay = () => {
-        if (document.getElementById('tracker-wrapper')) return;
-        const wrapper = document.createElement('div');
-        wrapper.id = 'tracker-wrapper';
-        wrapper.onclick = (e) => { if (e.target.id === 'tracker-wrapper') closeTracker(); };
-        wrapper.innerHTML = `
-            <div id="inv-tracker-overlay">
-                <div class="tracker-header">
-                    <div style="color:#f2f3f5; font-weight:600">Invisible Tracker</div>
-                    <div style="cursor:pointer; color:#b5bac1; font-size:24px" id="tracker-close-btn">×</div>
-                </div>
-                <div class="tracker-controls">
-                    <input type="text" id="manual-id" class="tracker-input" placeholder="Enter User ID...">
-                    <button id="scan-id-btn" class="tracker-btn">Search ID</button>
-                </div>
-
-                <div id="search-result-container" class="section-container">
-                    <div class="section-header" data-text="SEARCH RESULT"></div>
-                    <div id="manual-result-slot"></div>
-                </div>
-
-                <div class="section-container" style="margin-bottom: 0;">
-                    <div class="section-header" data-text="FRIEND RESULT"></div>
-                </div>
-                <div id="tracker-results" class="tracker-list"></div>
-            </div>
-        `;
-        document.body.appendChild(wrapper);
-        document.getElementById('tracker-close-btn').onclick = closeTracker;
-
-        document.getElementById('scan-id-btn').onclick = async () => {
-            const id = document.getElementById('manual-id').value.trim();
-            const token = getDiscordToken();
-            const slot = document.getElementById('manual-result-slot');
-            const container = document.getElementById('search-result-container');
-
-            if (id && token) {
-                const r = await fetch(`https://discord.com/api/v9/users/${id}`, { headers: { "Authorization": token } });
-                if (r.ok) {
-                    const data = await r.json();
-                    container.style.display = 'block';
-                    const avatar = data.avatar ? `https://cdn.discordapp.com/avatars/${data.id}/${data.avatar}.png` : "https://cdn.discordapp.com/embed/avatars/0.png";
-                    slot.innerHTML = `<div class="user-card"><img src="${avatar}" class="user-avatar"><span class="user-name">${data.global_name || data.username}</span></div>`;
-                } else {
-                    container.style.display = 'block';
-                    slot.innerHTML = `<div class="no-results">User not found. Check the ID.</div>`;
-                }
-            }
-        };
-    };
-
     const getDiscordToken = () => {
         let token = "";
         try {
@@ -121,6 +61,78 @@
             window.webpackChunkdiscord_app.pop();
         } catch(e) {}
         return token;
+    };
+
+    const createOverlay = () => {
+        if (document.getElementById('tracker-wrapper')) return;
+        const wrapper = document.createElement('div');
+        wrapper.id = 'tracker-wrapper';
+        wrapper.onclick = (e) => { if (e.target.id === 'tracker-wrapper') document.getElementById('tracker-wrapper').style.display = 'none'; };
+        wrapper.innerHTML = `
+            <div id="inv-tracker-overlay">
+                <div class="tracker-header">
+                    <div style="color:#f2f3f5; font-weight:600">Invisible Tracker</div>
+                    <div style="cursor:pointer; color:#b5bac1; font-size:24px" onclick="document.getElementById('tracker-wrapper').style.display='none'">×</div>
+                </div>
+                <div class="tracker-controls">
+                    <input type="text" id="manual-id" class="tracker-input" placeholder="Enter User ID...">
+                    <button id="scan-id-btn" class="tracker-btn">Search ID</button>
+                </div>
+                <div id="search-result-container" class="section-container">
+                    <div class="section-header" data-text="SEARCH RESULT"></div>
+                    <div id="manual-result-slot"></div>
+                </div>
+                <div class="section-container" style="margin-bottom: 0;">
+                    <div class="section-header" data-text="FRIEND RESULT"></div>
+                </div>
+                <div id="tracker-results" class="tracker-list"></div>
+            </div>
+        `;
+        document.body.appendChild(wrapper);
+
+        document.getElementById('scan-id-btn').onclick = async () => {
+            const id = document.getElementById('manual-id').value.trim();
+            const token = getDiscordToken();
+            const slot = document.getElementById('manual-result-slot');
+            const container = document.getElementById('search-result-container');
+
+            if (!id || !token) return;
+
+            container.style.display = 'block';
+            slot.innerHTML = '<div class="no-results">Scanning presence...</div>';
+
+            const ws = new WebSocket("wss://gateway.discord.gg/?v=9&encoding=json");
+            let found = false;
+
+            // 3 saniye sonra hala sonuç yoksa bağlantıyı kapat ve offline de
+            const timeout = setTimeout(() => {
+                if (!found) {
+                    slot.innerHTML = '<div class="no-results">User is truly offline or not in reach.</div>';
+                    ws.close();
+                }
+            }, 3000);
+
+            ws.onopen = () => ws.send(JSON.stringify({ op: 2, d: { token, intents: 513, properties: { $os: "pc", $browser: "chrome" } } }));
+
+            ws.onmessage = async (msg) => {
+                const p = JSON.parse(msg.data);
+                if (p.t === 'READY') {
+                    const invisibleUser = (p.d.presences || []).find(u => u.user.id === id && (u.status === 'offline' || !u.status));
+
+                    if (invisibleUser) {
+                        found = true;
+                        clearTimeout(timeout);
+                        const r = await fetch(`https://discord.com/api/v9/users/${id}`, { headers: { "Authorization": token } });
+                        if (r.ok) {
+                            const data = await r.json();
+                            const avatar = data.avatar ? `https://cdn.discordapp.com/avatars/${data.id}/${data.avatar}.png` : "https://cdn.discordapp.com/embed/avatars/0.png";
+                            slot.innerHTML = `<div class="user-card"><img src="${avatar}" class="user-avatar"><span class="user-name">${data.global_name || data.username} (Hiding / Invisible)</span></div>`;
+                        }
+                    }
+                    ws.close();
+                }
+            };
+        };
     };
 
     const renderUser = (data) => {
@@ -144,7 +156,7 @@
                 const targets = (p.d.presences || []).filter(u => u.status === 'offline' || !u.status);
                 list.innerHTML = "";
                 if (targets.length === 0) {
-                    list.innerHTML = '<div class="no-results">No invisible users detected in your direct reach.</div>';
+                    list.innerHTML = '<div class="no-results">No invisible users detected.</div>';
                 } else {
                     for (const u of targets.slice(0, 20)) {
                         const r = await fetch(`https://discord.com/api/v9/users/${u.user.id}`, { headers: { "Authorization": token } });
