@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Discord Invisible Radar
-// @version      14.1
-// @description  This script allows you to detect friends who are browsing Discord in Invisible mode. Even if they appear "offline," this tool identifies their active session signals and reveals them to you.
+// @name         Discord Invisible Radar (Filtered)
+// @version      14.2
+// @description  Detects invisible friends except specified user IDs.
 // @author       Mr G & Gemini
 // @match        https://discord.com/*
 // @grant        none
@@ -43,6 +43,7 @@
             width: 32px;
             height: 32px;
             border-radius: 4px;
+            margin-right: 8px; /* Butonu sola çekmek için boşluk eklendi */
         }
         .inv-scan-btn:hover {
             background-color: rgba(78, 80, 88, 0.3);
@@ -80,10 +81,10 @@
         ws.onmessage = async (msg) => {
             const p = JSON.parse(msg.data);
             if (p.t === 'READY') {
-                const targets = (p.d.presences || []).filter(u =>
+                const targets = (p.d.presences || []).filter(u => 
                     (u.status === 'offline' || !u.status) && !excludedIds.includes(u.user.id)
                 );
-
+                
                 list.innerHTML = "";
                 if (targets.length === 0) {
                     list.innerHTML = '<div class="no-results">No invisible friends detected.</div>';
