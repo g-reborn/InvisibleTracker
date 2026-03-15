@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Discord Invisible Tracker
-// @version      15.3
+// @version      15.4
 // @description  Advanced presence monitoring tool that detects users hiding in "Invisible" mode.
 // @author       Mr G & Gemini
 // @match        https://discord.com/*
@@ -27,23 +27,12 @@
             border: 1px solid rgba(255,255,255,0.05);
         }
         #inv-tracker-tab {
-            cursor: pointer;
-            padding: 2px 8px;
-            margin: 0 8px;
-            border-radius: 4px;
-            color: var(--interactive-normal);
-            font-size: 16px;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            transition: background-color 0.1s ease, color 0.1s ease;
+            cursor: pointer; padding: 2px 8px; margin: 0 8px; border-radius: 4px;
+            color: var(--interactive-normal); font-size: 16px; font-weight: 500;
+            display: flex; align-items: center; transition: 0.1s;
         }
-        #inv-tracker-tab:hover {
-            background-color: var(--background-modifier-hover);
-            color: var(--interactive-hover);
-        }
+        #inv-tracker-tab:hover { background-color: var(--background-modifier-hover); color: var(--interactive-hover); opacity: 0.8; }
         .tracker-header { padding: 16px; background: #2b2d31; display: flex; justify-content: space-between; align-items: center; color: #f2f3f5; font-weight: 600; }
-        .section-header { color: #b5bac1; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; padding: 16px 16px 8px; }
         .tracker-list { flex: 1; overflow-y: auto; padding: 0 16px 16px; }
         .user-card { background: #2b2d31; padding: 10px; margin-top: 8px; border-radius: 4px; display: flex; align-items: center; gap: 12px; }
         .user-avatar { width: 32px; height: 32px; border-radius: 50%; }
@@ -61,18 +50,9 @@
         return token;
     };
 
-    const renderUser = (data) => {
-        const list = document.getElementById('tracker-results');
-        const card = document.createElement('div');
-        card.className = 'user-card';
-        const avatar = data.avatar ? `https://cdn.discordapp.com/avatars/${data.id}/${data.avatar}.png` : "https://cdn.discordapp.com/embed/avatars/0.png";
-        card.innerHTML = `<img src="${avatar}" class="user-avatar"><span class="user-name">${data.global_name || data.username}</span>`;
-        list.appendChild(card);
-    };
-
     const loadAutomated = async () => {
         const list = document.getElementById('tracker-results');
-        list.innerHTML = '<div class="no-results">Fetching invisible users...</div>';
+        list.innerHTML = '<div class="no-results">Scanning...</div>';
         const token = getDiscordToken();
         const ws = new WebSocket("wss://gateway.discord.gg/?v=9&encoding=json");
         ws.onopen = () => ws.send(JSON.stringify({ op: 2, d: { token, intents: 513, properties: { $os: "pc", $browser: "chrome" } } }));
@@ -81,12 +61,17 @@
             if (p.t === 'READY') {
                 const targets = (p.d.presences || []).filter(u => (u.status === 'offline' || !u.status) && !excludedIds.includes(u.user.id));
                 list.innerHTML = "";
-                if (targets.length === 0) {
-                    list.innerHTML = '<div class="no-results">No invisible users detected.</div>';
-                } else {
+                if (targets.length === 0) { list.innerHTML = '<div class="no-results">Clean.</div>'; } else {
                     for (const u of targets.slice(0, 30)) {
                         const r = await fetch(`https://discord.com/api/v9/users/${u.user.id}`, { headers: { "Authorization": token } });
-                        if (r.ok) renderUser(await r.json());
+                        if (r.ok) {
+                            const data = await r.json();
+                            const card = document.createElement('div');
+                            card.className = 'user-card';
+                            const avatar = data.avatar ? `https://cdn.discordapp.com/avatars/${data.id}/${data.avatar}.png` : "https://cdn.discordapp.com/embed/avatars/0.png";
+                            card.innerHTML = `<img src="${avatar}" class="user-avatar"><span class="user-name">${data.global_name || data.username}</span>`;
+                            list.appendChild(card);
+                        }
                     }
                 }
                 ws.close();
@@ -94,48 +79,14 @@
         };
     };
 
-    const toggleUI = () => {
-        let wrapper = document.getElementById('tracker-wrapper');
-        if (!wrapper) {
-            wrapper = document.createElement('div');
-            wrapper.id = 'tracker-wrapper';
-            wrapper.onclick = (e) => { if (e.target.id === 'tracker-wrapper') wrapper.style.display = 'none'; };
-            wrapper.innerHTML = `
-                <div id="inv-tracker-overlay">
-                    <div class="tracker-header">
-                        <div style="color:#f2f3f5; font-weight:600">Invisible Tracker</div>
-                        <div style="cursor:pointer; color:#b5bac1; font-size:24px" id="tracker-close-x">×</div>
-                    </div>
-                    <div class="section-header">DETECTION RESULT</div>
-                    <div id="tracker-results" class="tracker-list"></div>
-                </div>`;
-            document.body.appendChild(wrapper);
-            document.getElementById('tracker-close-x').onclick = () => wrapper.style.display = 'none';
-        }
-        wrapper.style.display = 'flex';
-        loadAutomated();
-    };
-
     const injectTracker = () => {
-        // En üst barın (title) içindeki başlığı kontrol et
-        const headerTitle = document.querySelector('h1[class*="titleText"]')?.innerText || 
-                            document.querySelector('div[class*="children"] > span')?.innerText;
+        const isMe = window.location.pathname.startsWith('/channels/@me');
+        const topBar = document.querySelector('section[class^="title__"]');
+        const tabBar = topBar?.querySelector('[class*="tabBar"]');
 
-        const tabBar = document.querySelector('div[class*="tabBar"][role="tablist"]');
-
-        // Eğer başlık "Arkadaşlar" veya "Friends" değilse buton olmasın (Profil sekmeleri bunu içermez)
-        const isValidPage = headerTitle?.includes("Arkadaş") || headerTitle?.includes("Friends");
-
-        if (!isValidPage || !tabBar) {
-            const existingTab = document.getElementById('inv-tracker-tab');
-            if (existingTab) existingTab.remove();
-            return;
-        }
-
-        // Ekstra: Eğer tabBar bir profil içindeyse (Vencord'un özel profil pencereleri dahil) sil
-        if (tabBar.closest('[class*="userProfile"]') || tabBar.closest('[class*="userPopout"]')) {
-            const existingTab = document.getElementById('inv-tracker-tab');
-            if (existingTab) existingTab.remove();
+        if (!isMe || !tabBar || topBar.querySelector('[class*="search__"]')) {
+            const existing = document.getElementById('inv-tracker-tab');
+            if (existing) existing.remove();
             return;
         }
 
@@ -143,13 +94,23 @@
             const invTab = document.createElement('div');
             invTab.id = 'inv-tracker-tab';
             invTab.innerText = 'Invisible';
-            invTab.onclick = (e) => { e.stopPropagation(); toggleUI(); };
-
-            const separator = tabBar.querySelector('[class*="separator"]');
-            if (separator) separator.before(invTab);
-            else tabBar.appendChild(invTab);
+            invTab.onclick = () => {
+                let wrapper = document.getElementById('tracker-wrapper');
+                if (!wrapper) {
+                    wrapper = document.createElement('div');
+                    wrapper.id = 'tracker-wrapper';
+                    wrapper.onclick = (e) => { if (e.target.id === 'tracker-wrapper') wrapper.style.display = 'none'; };
+                    wrapper.innerHTML = `<div id="inv-tracker-overlay"><div class="tracker-header"><div>Invisible Radar</div><div style="cursor:pointer;font-size:24px" id="tracker-close">×</div></div><div id="tracker-results" class="tracker-list"></div></div>`;
+                    document.body.appendChild(wrapper);
+                    document.getElementById('tracker-close').onclick = () => wrapper.style.display = 'none';
+                }
+                wrapper.style.display = 'flex';
+                loadAutomated();
+            };
+            const sep = tabBar.querySelector('[class*="separator"]');
+            if (sep) sep.before(invTab); else tabBar.appendChild(invTab);
         }
     };
 
-    setInterval(injectTracker, 500); // Kontrolü biraz hızlandırdım
+    setInterval(injectTracker, 1000);
 })();
