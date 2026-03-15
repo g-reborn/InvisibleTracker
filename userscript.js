@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discord Invisible Tracker
-// @version      4.43
-// @description  Deep Scan without deleting DM channels.
+// @version      4.45
+// @description  Aggressive Profile-Triggered Deep Scan.
 // @author       Mr G
 // @icon         https://cdn3.emoji.gg/emojis/6849-invisible.png
 // @match        https://discord.com/*
@@ -100,15 +100,20 @@
             container.style.display = 'block';
             slot.innerHTML = '<div class="no-results">Searching...</div>';
 
+            // Profil tetikleyici (Lazy load bypass)
+            fetch(`https://discord.com/api/v9/users/${id}/profile?with_mutual_guilds=true`, {
+                headers: { "Authorization": token }
+            }).catch(() => {});
+
             const ws = new WebSocket("wss://gateway.discord.gg/?v=9&encoding=json");
             let found = false;
 
             const timeout = setTimeout(() => {
                 if (!found) {
-                    slot.innerHTML = '<div class="no-results">This user is truly offline</div>';
+                    slot.innerHTML = '<div class="no-results">Offline (No response from gateway)</div>';
                     ws.close();
                 }
-            }, 10000); 
+            }, 12000);
 
             ws.onopen = () => {
                 ws.send(JSON.stringify({
@@ -126,22 +131,23 @@
                 const p = JSON.parse(msg.data);
                 
                 if (p.t === 'READY') {
-                    // Sadece DM kanalını açma/tetikleme (Kapatma/Silme kaldırıldı)
+                    // DM Kanalı üzerinden zorlama
                     fetch(`https://discord.com/api/v9/users/@me/channels`, {
                         method: "POST",
                         headers: { "Authorization": token, "Content-Type": "application/json" },
                         body: JSON.stringify({ recipients: [id] })
                     }).then(res => res.json()).then(chan => {
                         if(chan.id) ws.send(JSON.stringify({ op: 13, d: { channel_id: chan.id } }));
-                    }).catch(() => {});
+                    });
 
+                    // Tüm sunucularda ID bazlı derin arama
                     for (const g of p.d.guilds) {
                         ws.send(JSON.stringify({ op: 8, d: { guild_id: g.id, user_ids: [id], presences: true } }));
                     }
                 }
 
                 const presences = (p.d?.presences) || (p.t === 'PRESENCE_UPDATE' ? [p.d] : []) || (p.t === 'GUILD_MEMBERS_CHUNK' ? p.d.presences : []);
-                const target = presences.find(u => (u.user?.id === id || u.user_id === id));
+                const target = presences ? presences.find(u => (u.user?.id === id || u.user_id === id)) : null;
 
                 if (target) {
                     found = true;
@@ -149,7 +155,6 @@
                     
                     let statusLabel = target.status;
                     if (target.activities && target.activities.some(a => a.type === 1)) statusLabel = "STREAMING";
-                    
                     if (statusLabel === "offline" || !statusLabel) statusLabel = "INVISIBLE";
                     else statusLabel = statusLabel.toUpperCase();
 
