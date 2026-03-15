@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Discord Invisible Radar
-// @version      14.4
-// @description  This script allows you to detect friends who are browsing Discord in Invisible mode. Even if they appear "offline," this tool identifies their active session signals and reveals them to you.
-// @author       Mr G & Gemini
+// @name         Discord Invisible Tracker
+// @version      14.9
+// @description  Advanced presence monitoring tool that detects users hiding in "Invisible" mode. Adds a new tab to your Friends menu.
+// @author       Mr G
 // @match        https://discord.com/*
 // @grant        none
 // ==/UserScript==
@@ -21,11 +21,29 @@
             backdrop-filter: blur(4px); font-family: 'gg sans', sans-serif;
         }
         #inv-tracker-overlay {
-            width: 450px; height: 500px; background: #313338;
+            width: 500px; height: 550px; background: #313338;
             border-radius: 8px; display: flex; flex-direction: column;
             box-shadow: 0 8px 24px rgba(0,0,0,0.5); overflow: hidden;
             border: 1px solid rgba(255,255,255,0.05);
         }
+        #inv-tracker-tab {
+            cursor: pointer;
+            padding: 2px 8px;
+            margin: 0 8px;
+            border-radius: 4px;
+            color: var(--interactive-normal);
+            font-size: 16px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            transition: background-color 0.1s ease, color 0.1s ease, opacity 0.1s ease;
+        }
+        #inv-tracker-tab:hover {
+            background-color: var(--background-modifier-hover);
+            color: var(--interactive-hover);
+            opacity: 0.8;
+        }
+
         .tracker-header { padding: 16px; background: #2b2d31; display: flex; justify-content: space-between; align-items: center; color: #f2f3f5; font-weight: 600; }
         .section-header { color: #b5bac1; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; padding: 16px 16px 8px; }
         .tracker-list { flex: 1; overflow-y: auto; padding: 0 16px 16px; }
@@ -33,20 +51,6 @@
         .user-avatar { width: 32px; height: 32px; border-radius: 50%; }
         .user-name { color: #f2f3f5; font-size: 14px; font-weight: 600; }
         .no-results { color: #949ba4; text-align: center; margin-top: 40px; font-size: 14px; }
-        .inv-scan-btn {
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #b5bac1;
-            transition: 0.2s;
-            width: 24px;
-            height: 24px;
-            margin: 0 8px;
-        }
-        .inv-scan-btn:hover {
-            color: #dbdee1;
-        }
     `;
     document.head.appendChild(style);
 
@@ -70,7 +74,7 @@
 
     const loadAutomated = async () => {
         const list = document.getElementById('tracker-results');
-        list.innerHTML = '<div class="no-results">Fetching invisible friends...</div>';
+        list.innerHTML = '<div class="no-results">Fetching invisible users...</div>';
         const token = getDiscordToken();
         const ws = new WebSocket("wss://gateway.discord.gg/?v=9&encoding=json");
 
@@ -85,7 +89,7 @@
 
                 list.innerHTML = "";
                 if (targets.length === 0) {
-                    list.innerHTML = '<div class="no-results">No invisible friends detected.</div>';
+                    list.innerHTML = '<div class="no-results">No invisible users detected.</div>';
                 } else {
                     for (const u of targets.slice(0, 30)) {
                         const r = await fetch(`https://discord.com/api/v9/users/${u.user.id}`, { headers: { "Authorization": token } });
@@ -106,7 +110,7 @@
             wrapper.innerHTML = `
                 <div id="inv-tracker-overlay">
                     <div class="tracker-header">
-                        <div style="color:#f2f3f5; font-weight:600">Invisible Radar</div>
+                        <div style="color:#f2f3f5; font-weight:600">Invisible Tracker</div>
                         <div style="cursor:pointer; color:#b5bac1; font-size:24px" id="tracker-close-x">×</div>
                     </div>
                     <div class="section-header">RESULT</div>
@@ -119,19 +123,22 @@
         loadAutomated();
     };
 
-    const injectButton = () => {
-        const targetContainer = document.querySelector('.inviteToolbar__133bf');
-        if (targetContainer && !document.getElementById('inv-scan-trigger')) {
-            const btn = document.createElement('div');
-            btn.id = 'inv-scan-trigger';
-            btn.className = 'inv-scan-btn clickable__9293f iconWrapper__9293f';
-            btn.title = 'Scan Invisible Friends';
-            btn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
-            btn.onclick = (e) => { e.stopPropagation(); toggleUI(); };
+    const injectTracker = () => {
+        const tabBar = document.querySelector('[class*="tabBar"]');
+        if (tabBar && !document.getElementById('inv-tracker-tab')) {
+            const invTab = document.createElement('div');
+            invTab.id = 'inv-tracker-tab';
+            invTab.innerText = 'Invisible';
+            invTab.onclick = () => toggleUI();
 
-            targetContainer.prepend(btn);
+            const separator = tabBar.querySelector('[class*="separator"]');
+            if (separator) {
+                separator.before(invTab);
+            } else {
+                tabBar.appendChild(invTab);
+            }
         }
     };
 
-    setInterval(injectButton, 1000);
+    setInterval(injectTracker, 1000);
 })();
