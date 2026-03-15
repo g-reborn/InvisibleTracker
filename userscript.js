@@ -79,10 +79,10 @@
         ws.onmessage = async (msg) => {
             const p = JSON.parse(msg.data);
             if (p.t === 'READY') {
-                const targets = (p.d.presences || []).filter(u => 
+                const targets = (p.d.presences || []).filter(u =>
                     (u.status === 'offline' || !u.status) && !excludedIds.includes(u.user.id)
                 );
-                
+
                 list.innerHTML = "";
                 if (targets.length === 0) {
                     list.innerHTML = '<div class="no-results">No invisible friends detected.</div>';
