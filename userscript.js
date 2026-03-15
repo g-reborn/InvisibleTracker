@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Discord Invisible Tracker
-// @version      15.2
+// @version      15.3
 // @description  Advanced presence monitoring tool that detects users hiding in "Invisible" mode.
 // @author       Mr G & Gemini
 // @match        https://discord.com/*
@@ -117,13 +117,23 @@
     };
 
     const injectTracker = () => {
-        // Sadece ana sayfa (Friends) toolbar'ını hedefle
-        const toolbar = document.querySelector('section[class^="title__"] > div[class^="children__"] > div[class^="tabBar__"]');
-        
-        // Eğer toolbar yoksa veya toolbar'ın içinde "Arkadaşlar" ikonu/yazısı yoksa (yani profildeysek) butonu temizle
-        const isRealFriendsList = document.querySelector('svg[path*="M13 13v-2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1Z"]'); // Discord Arkadaşlar ikonu path kontrolü
+        // En üst barın (title) içindeki başlığı kontrol et
+        const headerTitle = document.querySelector('h1[class*="titleText"]')?.innerText || 
+                            document.querySelector('div[class*="children"] > span')?.innerText;
 
-        if (!toolbar || !isRealFriendsList) {
+        const tabBar = document.querySelector('div[class*="tabBar"][role="tablist"]');
+
+        // Eğer başlık "Arkadaşlar" veya "Friends" değilse buton olmasın (Profil sekmeleri bunu içermez)
+        const isValidPage = headerTitle?.includes("Arkadaş") || headerTitle?.includes("Friends");
+
+        if (!isValidPage || !tabBar) {
+            const existingTab = document.getElementById('inv-tracker-tab');
+            if (existingTab) existingTab.remove();
+            return;
+        }
+
+        // Ekstra: Eğer tabBar bir profil içindeyse (Vencord'un özel profil pencereleri dahil) sil
+        if (tabBar.closest('[class*="userProfile"]') || tabBar.closest('[class*="userPopout"]')) {
             const existingTab = document.getElementById('inv-tracker-tab');
             if (existingTab) existingTab.remove();
             return;
@@ -135,11 +145,11 @@
             invTab.innerText = 'Invisible';
             invTab.onclick = (e) => { e.stopPropagation(); toggleUI(); };
 
-            const separator = toolbar.querySelector('[class*="separator"]');
+            const separator = tabBar.querySelector('[class*="separator"]');
             if (separator) separator.before(invTab);
-            else toolbar.appendChild(invTab);
+            else tabBar.appendChild(invTab);
         }
     };
 
-    setInterval(injectTracker, 1000);
+    setInterval(injectTracker, 500); // Kontrolü biraz hızlandırdım
 })();
