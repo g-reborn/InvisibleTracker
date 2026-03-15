@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Discord Invisible Tracker
-// @version      15.1
+// @version      15.2
 // @description  Advanced presence monitoring tool that detects users hiding in "Invisible" mode.
 // @author       Mr G & Gemini
 // @match        https://discord.com/*
@@ -36,12 +36,11 @@
             font-weight: 500;
             display: flex;
             align-items: center;
-            transition: background-color 0.1s ease, color 0.1s ease, opacity 0.1s ease;
+            transition: background-color 0.1s ease, color 0.1s ease;
         }
         #inv-tracker-tab:hover {
             background-color: var(--background-modifier-hover);
             color: var(--interactive-hover);
-            opacity: 0.8;
         }
         .tracker-header { padding: 16px; background: #2b2d31; display: flex; justify-content: space-between; align-items: center; color: #f2f3f5; font-weight: 600; }
         .section-header { color: #b5bac1; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; padding: 16px 16px 8px; }
@@ -118,19 +117,17 @@
     };
 
     const injectTracker = () => {
-        // SADECE Ana Sayfa ve Arkadaşlar sekmesinde çalışması için katı kontrol
-        const isMainFriendsPage = window.location.pathname === '/channels/@me';
-        const container = document.querySelector('section[class^="container__"]'); // Ana içerik alanı
-        const tabBar = container?.querySelector('[class*="tabBar"]');
+        // Sadece ana sayfa (Friends) toolbar'ını hedefle
+        const toolbar = document.querySelector('section[class^="title__"] > div[class^="children__"] > div[class^="tabBar__"]');
+        
+        // Eğer toolbar yoksa veya toolbar'ın içinde "Arkadaşlar" ikonu/yazısı yoksa (yani profildeysek) butonu temizle
+        const isRealFriendsList = document.querySelector('svg[path*="M13 13v-2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1Z"]'); // Discord Arkadaşlar ikonu path kontrolü
 
-        if (!isMainFriendsPage || !tabBar) {
+        if (!toolbar || !isRealFriendsList) {
             const existingTab = document.getElementById('inv-tracker-tab');
             if (existingTab) existingTab.remove();
             return;
         }
-
-        // Ek kontrol: tabBar'ın bir profil içerisinde olup olmadığını kontrol et (Profildeki tabBar'lar genelde farklı bir yapıdadır)
-        if (tabBar.closest('[class*="userProfile"]')) return;
 
         if (!document.getElementById('inv-tracker-tab')) {
             const invTab = document.createElement('div');
@@ -138,9 +135,9 @@
             invTab.innerText = 'Invisible';
             invTab.onclick = (e) => { e.stopPropagation(); toggleUI(); };
 
-            const separator = tabBar.querySelector('[class*="separator"]');
+            const separator = toolbar.querySelector('[class*="separator"]');
             if (separator) separator.before(invTab);
-            else tabBar.appendChild(invTab);
+            else toolbar.appendChild(invTab);
         }
     };
 
